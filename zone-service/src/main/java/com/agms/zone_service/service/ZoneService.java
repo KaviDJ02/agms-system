@@ -62,6 +62,8 @@ public class ZoneService {
                 .description(request.getDescription())
                 .deviceId(deviceId)
                 .iotUserId(registered.getUserId())
+                .minTemp(request.getMinTemp())
+                .maxTemp(request.getMaxTemp())
                 .build();
 
         Zone saved = zoneRepository.save(zone);
@@ -89,6 +91,8 @@ public class ZoneService {
                 .description(zone.getDescription())
                 .deviceId(zone.getDeviceId())
                 .iotUserId(zone.getIotUserId())
+                .minTemp(zone.getMinTemp())
+                .maxTemp(zone.getMaxTemp())
                 .build();
     }
 }

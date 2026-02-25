@@ -25,4 +25,10 @@ public class Zone {
 
     @Column(name = "iot_user_id")
     private String iotUserId;      // Stored after IoT user registration
+
+    @Column(name = "min_temp")
+    private Double minTemp;        // Minimum temperature threshold for automation rules
+
+    @Column(name = "max_temp")
+    private Double maxTemp;        // Maximum temperature threshold for automation rules
 }

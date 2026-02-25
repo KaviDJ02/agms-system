@@ -15,4 +15,6 @@ public class ZoneResponse {
     private String description;
     private String deviceId;       // Returned from IoT API after device registration
     private String iotUserId;      // User registered in the IoT platform
+    private Double minTemp;
+    private Double maxTemp;
 }

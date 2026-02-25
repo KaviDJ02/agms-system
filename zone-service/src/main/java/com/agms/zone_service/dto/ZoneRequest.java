@@ -32,4 +32,7 @@ public class ZoneRequest {
 
     @NotBlank(message = "Device type is required")
     private String deviceType;
+
+    private Double minTemp;   // Minimum temperature threshold
+    private Double maxTemp;   // Maximum temperature threshold
 }
