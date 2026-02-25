@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+spring:
+  cloud:
+    gateway:
+      mvc:
+        routes:
+          - id: zone-service
+            uri: lb://zone-service
+            predicates:
+              - Path=/api/zones/**
+
+          - id: sensor-service
+            uri: lb://sensor-service
+            predicates:
+              - Path=/api/sensors/**
+
+          - id: automation-service
+            uri: lb://automation-service
+            predicates:
+              - Path=/api/automation/**
+
+          - id: crop-service
+            uri: lb://crop-service
+            predicates:
+              - Path=/api/crops/**
