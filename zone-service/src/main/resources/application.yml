@@ -1,6 +1,10 @@
 server:
   port: 8081
 
+iot:
+  api:
+    base-url: http://104.211.95.241:8080/api   # Replace with actual IoT API base URL
+
 eureka:
   client:
     service-url:
