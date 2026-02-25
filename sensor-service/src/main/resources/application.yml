@@ -6,6 +6,7 @@ iot:
     base-url: http://104.211.95.241:8080/api   # Replace with actual IoT API base URL
     device-id: your-device-id            # Replace with the deviceId stored during zone creation
     bearer-token: your-bearer-token      # Replace with a valid token (or manage via auth flow)
+    zone-id: 1                           # Replace with the zoneId this sensor belongs to
 
 eureka:
   client:
