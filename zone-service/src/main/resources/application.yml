@@ -1,6 +1,20 @@
 server:
   port: 8081
 
+spring:
+  datasource:
+    url: jdbc:h2:mem:zonedb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  h2:
+    console:
+      enabled: true
+
 iot:
   api:
     base-url: http://104.211.95.241:8080/api   # Replace with actual IoT API base URL

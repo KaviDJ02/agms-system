@@ -4,9 +4,9 @@ server:
 iot:
   api:
     base-url: http://104.211.95.241:8080/api   # Replace with actual IoT API base URL
-    device-id: your-device-id            # Replace with the deviceId stored during zone creation
-    bearer-token: your-bearer-token      # Replace with a valid token (or manage via auth flow)
-    zone-id: 1                           # Replace with the zoneId this sensor belongs to
+    device-id: 6dd1b80c-4a05-4ec0-a371-f7782774435a            # Replace with the deviceId stored during zone creation
+    bearer-token: eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiVVNFUiIsInVzZXJJZCI6ImE0YTEyNDFmLTA1NGYtNDRiMC1iOWI5LTMxYTliMTcwY2Y5ZiIsInN1YiI6ImthdmluZHUiLCJpYXQiOjE3NzIxMzIwNzIsImV4cCI6MTc3MjEzMjk3Mn0.JzY7_KlGil1nSaFA1vWRZTgHPVITa2MIKVVf9has6Wk      # Replace with a valid token (or manage via auth flow)
+    zone-id: 1                               # Must be a numeric ID from zone-service (the 'id' field in the zone creation response)
 
 eureka:
   client:

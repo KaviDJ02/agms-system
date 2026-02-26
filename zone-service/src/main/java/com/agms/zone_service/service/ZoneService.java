@@ -32,36 +32,44 @@ public class ZoneService {
     public ZoneResponse createZone(ZoneRequest request) {
         log.info("Creating zone: {}", request.getName());
 
-        // Step 1: Register IoT user
-        IoTRegisterResponse registered = iotIntegrationService.registerUser(
-                request.getIotUsername(),
-                request.getIotEmail(),
-                request.getIotPassword()
-        );
-        log.info("IoT user registered with id: {}", registered.getUserId());
+        String iotUserId = null;
+        String deviceId = null;
 
-        // Step 2: Login → receive Bearer token
-        String token = iotIntegrationService.login(
-                request.getIotUsername(),
-                request.getIotPassword()
-        );
-        log.info("IoT login successful, token obtained");
+        try {
+            // Step 1: Register IoT user
+            IoTRegisterResponse registered = iotIntegrationService.registerUser(
+                    request.getIotUsername(),
+                    request.getIotPassword()
+            );
+            iotUserId = registered.getUserId();
+            log.info("IoT user registered with id: {}", iotUserId);
 
-        // Step 3: Add device → receive deviceId
-        String deviceId = iotIntegrationService.addDevice(
-                token,
-                request.getDeviceName(),
-                request.getDeviceType(),
-                request.getName()   // zone name used as device location
-        );
-        log.info("IoT device registered with id: {}", deviceId);
+            // Step 2: Login → receive Bearer token
+            String token = iotIntegrationService.login(
+                    request.getIotUsername(),
+                    request.getIotPassword()
+            );
+            log.info("IoT login successful, token obtained");
 
-        // Step 4: Persist zone
+            // Step 3: Add device → receive deviceId
+            deviceId = iotIntegrationService.addDevice(
+                    token,
+                    request.getDeviceName(),
+                    request.getDeviceType(),
+                    request.getName()
+            );
+            log.info("IoT device registered with id: {}", deviceId);
+
+        } catch (Exception e) {
+            log.warn("IoT provisioning failed (zone will be saved without deviceId): {}", e.getMessage());
+        }
+
+        // Step 4: Persist zone — always succeeds regardless of IoT result
         Zone zone = Zone.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .deviceId(deviceId)
-                .iotUserId(registered.getUserId())
+                .iotUserId(iotUserId)
                 .minTemp(request.getMinTemp())
                 .maxTemp(request.getMaxTemp())
                 .build();

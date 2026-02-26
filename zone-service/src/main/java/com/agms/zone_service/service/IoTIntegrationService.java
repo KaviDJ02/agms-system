@@ -16,11 +16,10 @@ public class IoTIntegrationService {
     /**
      * Registers a user on the IoT platform and returns their userId.
      */
-    public IoTRegisterResponse registerUser(String username, String email, String password) {
+    public IoTRegisterResponse registerUser(String username, String password) {
         log.info("Registering IoT user: {}", username);
         IoTRegisterRequest request = IoTRegisterRequest.builder()
                 .username(username)
-                .email(email)
                 .password(password)
                 .build();
         return iotApiClient.register(request);

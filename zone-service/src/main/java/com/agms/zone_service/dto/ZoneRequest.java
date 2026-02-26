@@ -21,9 +21,6 @@ public class ZoneRequest {
     @NotBlank(message = "IoT username is required")
     private String iotUsername;
 
-    @NotBlank(message = "IoT email is required")
-    private String iotEmail;
-
     @NotBlank(message = "IoT password is required")
     private String iotPassword;
 
