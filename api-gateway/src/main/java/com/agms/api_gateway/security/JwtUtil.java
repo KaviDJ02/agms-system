@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.util.Date;
 import java.util.HexFormat;
 
 @Slf4j
@@ -32,5 +33,18 @@ public class JwtUtil {
                 .parseSignedClaims(token)
                 .getPayload();
         return claims.getSubject();
+    }
+
+    /**
+     * Generates a new AGMS JWT signed with the gateway secret.
+     * Valid for 24 hours.
+     */
+    public String generateToken(String subject) {
+        return Jwts.builder()
+                .subject(subject)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + 86_400_000L)) // 24h
+                .signWith(secretKey)
+                .compact();
     }
 }

@@ -15,5 +15,7 @@ server:
 
 eureka:
   client:
+    # register-with-eureka: false   # Config Server is reached by direct URL (bootstrap.yml), not via Eureka
+    # fetch-registry: false
     service-url:
       defaultZone: http://localhost:8761/eureka/

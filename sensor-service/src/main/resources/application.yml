@@ -21,7 +21,7 @@ iot:
     device-id: 6dd1b80c-4a05-4ec0-a371-f7782774435a            # Replace with the deviceId stored during zone creation
     bearer-token:                              # Legacy fallback — leave blank; token is now auto-refreshed at startup
     username: kavindu                          # IoT platform username used for auto-authentication
-    password: kavindu123              # ← REPLACE THIS with the real IoT password for "kavindu"
+    password: 123456              # ← REPLACE THIS with the real IoT password for "kavindu"
     zone-id: 1                               # Must be a numeric ID from zone-service (the 'id' field in the zone creation response)
 
 eureka:
