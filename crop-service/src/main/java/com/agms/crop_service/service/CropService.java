@@ -26,6 +26,7 @@ public class CropService {
         Crop crop = Crop.builder()
                 .name(request.getName())
                 .quantity(request.getQuantity())
+                .zoneId(request.getZoneId())
                 .status(CropStatus.SEEDLING)   // All crops start as SEEDLING
                 .build();
         return toResponse(cropRepository.save(crop));
@@ -35,7 +36,16 @@ public class CropService {
     public CropResponse updateStatus(Long id, CropStatus newStatus) {
         Crop crop = cropRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Crop not found with id: " + id));
-        log.info("Updating crop {} status: {} → {}", id, crop.getStatus(), newStatus);
+
+        CropStatus current = crop.getStatus();
+
+        if (!current.canTransitionTo(newStatus)) {
+            throw new IllegalArgumentException(
+                    "Invalid state transition: " + current + " → " + newStatus
+                    + ". Allowed transitions: SEEDLING → VEGETATIVE → HARVESTED");
+        }
+
+        log.info("Updating crop {} status: {} → {}", id, current, newStatus);
         crop.setStatus(newStatus);
         return toResponse(cropRepository.save(crop));
     }
@@ -46,11 +56,32 @@ public class CropService {
                 .collect(Collectors.toList());
     }
 
+    public List<CropResponse> getCropsByZone(Long zoneId) {
+        return cropRepository.findByZoneId(zoneId).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    public CropResponse getCropById(Long id) {
+        return toResponse(cropRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Crop not found with id: " + id)));
+    }
+
+    @Transactional
+    public void deleteCrop(Long id) {
+        if (!cropRepository.existsById(id)) {
+            throw new RuntimeException("Crop not found with id: " + id);
+        }
+        cropRepository.deleteById(id);
+        log.info("Deleted crop with id: {}", id);
+    }
+
     private CropResponse toResponse(Crop crop) {
         return CropResponse.builder()
                 .id(crop.getId())
                 .name(crop.getName())
                 .quantity(crop.getQuantity())
+                .zoneId(crop.getZoneId())
                 .status(crop.getStatus())
                 .build();
     }

@@ -21,6 +21,9 @@ public class Crop {
     @Column(nullable = false)
     private Integer quantity;
 
+    @Column(name = "zone_id")
+    private Long zoneId;            // Which zone this crop belongs to
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CropStatus status;

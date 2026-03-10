@@ -1,4 +1,4 @@
-package com.agms.zone_service.exception;
+package com.agms.automation_service.exception;
 
 import feign.FeignException;
 import lombok.extern.slf4j.Slf4j;
@@ -16,24 +16,28 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Feign call to external IoT API failed
+    // Feign call to zone-service failed
     @ExceptionHandler(FeignException.class)
     public ResponseEntity<Map<String, Object>> handleFeignException(FeignException ex) {
-        log.error("IoT API call failed [status={}]: {}", ex.status(), ex.getMessage());
-        String message = switch (ex.status()) {
-            case 401 -> "IoT API authentication failed — check credentials";
-            case 404 -> "IoT API resource not found — check base-url or endpoint";
-            case 409 -> "IoT API conflict — user or device may already exist";
-            default  -> "IoT API error (status " + ex.status() + "): " + ex.getMessage();
-        };
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of(
-                "error", "IoT API Error",
-                "message", message,
+        log.error("Feign call failed [status={}]: {}", ex.status(), ex.getMessage());
+        HttpStatus status = ex.status() == 404 ? HttpStatus.NOT_FOUND : HttpStatus.BAD_GATEWAY;
+        return ResponseEntity.status(status).body(Map.of(
+                "error", "Service Communication Error",
+                "message", "Failed to reach zone-service: " + ex.getMessage(),
                 "timestamp", Instant.now().toString()
         ));
     }
 
-    // @Valid validation failures
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
+        log.error("Illegal state: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
+                "error", "Unprocessable Request",
+                "message", ex.getMessage(),
+                "timestamp", Instant.now().toString()
+        ));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         String errors = ex.getBindingResult().getFieldErrors().stream()
@@ -46,24 +50,11 @@ public class GlobalExceptionHandler {
         ));
     }
 
-    // Zone not found
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
         log.error("Runtime error: {}", ex.getMessage(), ex);
-        HttpStatus status = ex.getMessage() != null && ex.getMessage().contains("not found")
-                ? HttpStatus.NOT_FOUND : HttpStatus.INTERNAL_SERVER_ERROR;
-        return ResponseEntity.status(status).body(Map.of(
-                "error", status.getReasonPhrase(),
-                "message", ex.getMessage(),
-                "timestamp", Instant.now().toString()
-        ));
-    }
-
-    // Illegal argument (e.g. minTemp >= maxTemp on update)
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
-                "error", "Bad Request",
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "error", "Internal Server Error",
                 "message", ex.getMessage(),
                 "timestamp", Instant.now().toString()
         ));

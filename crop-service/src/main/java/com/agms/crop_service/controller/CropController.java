@@ -19,19 +19,29 @@ public class CropController {
 
     private final CropService cropService;
 
-    /**
-     * Create a new crop. Status defaults to SEEDLING.
-     * POST /api/crops
-     */
+    /** POST /api/crops */
     @PostMapping
     public ResponseEntity<CropResponse> createCrop(@Valid @RequestBody CropRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(cropService.createCrop(request));
     }
 
-    /**
-     * Update the growth status of a crop.
-     * PUT /api/crops/{id}/status?status=VEGETATIVE
-     */
+    /** GET /api/crops  or  GET /api/crops?zoneId=1 */
+    @GetMapping
+    public ResponseEntity<List<CropResponse>> getAllCrops(
+            @RequestParam(required = false) Long zoneId) {
+        if (zoneId != null) {
+            return ResponseEntity.ok(cropService.getCropsByZone(zoneId));
+        }
+        return ResponseEntity.ok(cropService.getAllCrops());
+    }
+
+    /** GET /api/crops/{id} */
+    @GetMapping("/{id}")
+    public ResponseEntity<CropResponse> getCropById(@PathVariable Long id) {
+        return ResponseEntity.ok(cropService.getCropById(id));
+    }
+
+    /** PUT /api/crops/{id}/status?status=VEGETATIVE */
     @PutMapping("/{id}/status")
     public ResponseEntity<CropResponse> updateStatus(
             @PathVariable Long id,
@@ -39,12 +49,10 @@ public class CropController {
         return ResponseEntity.ok(cropService.updateStatus(id, status));
     }
 
-    /**
-     * Retrieve all crops.
-     * GET /api/crops
-     */
-    @GetMapping
-    public ResponseEntity<List<CropResponse>> getAllCrops() {
-        return ResponseEntity.ok(cropService.getAllCrops());
+    /** DELETE /api/crops/{id} */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCrop(@PathVariable Long id) {
+        cropService.deleteCrop(id);
+        return ResponseEntity.noContent().build();
     }
 }

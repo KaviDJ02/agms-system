@@ -5,6 +5,8 @@ import com.agms.sensor_service.dto.TelemetryResponse;
 import com.agms.sensor_service.dto.AutomationProcessRequest;
 import com.agms.sensor_service.client.IoTTelemetryClient;
 import com.agms.sensor_service.client.AutomationClient;
+import com.agms.sensor_service.model.SensorReading;
+import com.agms.sensor_service.repository.SensorReadingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,33 +22,38 @@ public class SensorService {
 
     private final IoTTelemetryClient iotTelemetryClient;
     private final AutomationClient automationClient;
+    private final TokenRefreshService tokenRefreshService;
+    private final SensorReadingRepository readingRepository;
 
     @Value("${iot.api.device-id}")
     private String deviceId;
 
-    @Value("${iot.api.bearer-token}")
-    private String bearerToken;
-
     @Value("${iot.api.zone-id}")
     private Long zoneId;
 
-    // Thread-safe in-memory store for the latest reading
-    private final AtomicReference<SensorReadingResponse> latestReading = new AtomicReference<>();
+    // Fast in-memory cache — backed by DB for persistence across restarts
+    private final AtomicReference<SensorReadingResponse> latestCache = new AtomicReference<>();
 
     /**
      * Called by the scheduler every 10 seconds.
-     * Fetches telemetry from the IoT API and updates the in-memory store.
+     * Fetches telemetry from the IoT API, persists to DB, and forwards to automation-service.
      */
     public void fetchAndStore() {
         try {
+            String token = tokenRefreshService.getToken();
+            if (token == null) {
+                log.warn("No valid IoT token available yet — skipping telemetry fetch");
+                return;
+            }
             log.info("Fetching telemetry for device: {}", deviceId);
             TelemetryResponse telemetry = iotTelemetryClient.getLatestTelemetry(
-                    "Bearer " + bearerToken,
+                    "Bearer " + token,
                     deviceId
             );
 
-            SensorReadingResponse reading = SensorReadingResponse.builder()
-                    .deviceId(telemetry.getDeviceId())
+            // Persist to H2
+            SensorReading entity = SensorReading.builder()
+                    .deviceId(telemetry.getDeviceId() != null ? telemetry.getDeviceId() : deviceId)
                     .temperature(telemetry.getTemperature())
                     .humidity(telemetry.getHumidity())
                     .soilMoisture(telemetry.getSoilMoisture())
@@ -54,12 +61,16 @@ public class SensorService {
                     .recordedAt(Instant.now())
                     .build();
 
-            latestReading.set(reading);
-            log.info("Telemetry stored: temp={}°C, humidity={}%, soil={}%",
-                    reading.getTemperature(), reading.getHumidity(), reading.getSoilMoisture());
+            SensorReading saved = readingRepository.save(entity);
+            log.info("Telemetry persisted (id={}): temp={}°C, humidity={}%, soil={}%",
+                    saved.getId(), saved.getTemperature(), saved.getHumidity(), saved.getSoilMoisture());
+
+            // Update fast in-memory cache
+            SensorReadingResponse response = toResponse(saved);
+            latestCache.set(response);
 
             // Forward temperature to automation-service for rule evaluation
-            forwardToAutomation(reading.getTemperature());
+            forwardToAutomation(saved.getTemperature());
 
         } catch (Exception e) {
             log.error("Failed to fetch telemetry from IoT API: {}", e.getMessage());
@@ -67,10 +78,21 @@ public class SensorService {
     }
 
     /**
-     * Returns the last successfully fetched reading, or null if none yet.
+     * Returns the latest reading — from cache if available, otherwise queries DB.
+     * Survives service restarts because readings are persisted.
      */
     public SensorReadingResponse getLatestReading() {
-        return latestReading.get();
+        SensorReadingResponse cached = latestCache.get();
+        if (cached != null) return cached;
+
+        // Populate cache from DB on first call after restart
+        return readingRepository.findTopByOrderByRecordedAtDesc()
+                .map(r -> {
+                    SensorReadingResponse dto = toResponse(r);
+                    latestCache.set(dto);
+                    return dto;
+                })
+                .orElse(null);
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
@@ -86,5 +108,16 @@ public class SensorService {
         } catch (Exception e) {
             log.error("Failed to forward telemetry to automation-service: {}", e.getMessage());
         }
+    }
+
+    private SensorReadingResponse toResponse(SensorReading reading) {
+        return SensorReadingResponse.builder()
+                .deviceId(reading.getDeviceId())
+                .temperature(reading.getTemperature())
+                .humidity(reading.getHumidity())
+                .soilMoisture(reading.getSoilMoisture())
+                .status(reading.getStatus())
+                .recordedAt(reading.getRecordedAt())
+                .build();
     }
 }

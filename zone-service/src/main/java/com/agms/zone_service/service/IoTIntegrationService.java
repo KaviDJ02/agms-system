@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -39,6 +41,18 @@ public class IoTIntegrationService {
     }
 
     /**
+     * Refreshes an expired access token using the provided refresh token.
+     * Returns the new access token.
+     */
+    public IoTRefreshResponse refreshToken(String refreshToken) {
+        log.info("Refreshing IoT access token");
+        IoTRefreshRequest request = IoTRefreshRequest.builder()
+                .refreshToken(refreshToken)
+                .build();
+        return iotApiClient.refresh(request);
+    }
+
+    /**
      * Registers a device on the IoT platform using the Bearer token.
      * Returns the assigned deviceId.
      */
@@ -52,5 +66,13 @@ public class IoTIntegrationService {
         // Feign client expects full "Bearer <token>" header value
         IoTAddDeviceResponse response = iotApiClient.addDevice("Bearer " + bearerToken, request);
         return response.getDeviceId();
+    }
+
+    /**
+     * Lists all devices for the authenticated user.
+     */
+    public List<IoTDeviceResponse> getDevices(String bearerToken) {
+        log.info("Fetching IoT device list");
+        return iotApiClient.getDevices("Bearer " + bearerToken);
     }
 }

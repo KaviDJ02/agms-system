@@ -14,5 +14,6 @@ public class CropResponse {
     private Long id;
     private String name;
     private Integer quantity;
+    private Long zoneId;
     private CropStatus status;
 }

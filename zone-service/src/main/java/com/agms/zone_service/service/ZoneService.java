@@ -2,6 +2,7 @@ package com.agms.zone_service.service;
 
 import com.agms.zone_service.dto.ZoneRequest;
 import com.agms.zone_service.dto.ZoneResponse;
+import com.agms.zone_service.dto.ZoneUpdateRequest;
 import com.agms.zone_service.dto.iot.IoTRegisterResponse;
 import com.agms.zone_service.model.Zone;
 import com.agms.zone_service.repository.ZoneRepository;
@@ -90,6 +91,49 @@ public class ZoneService {
         Zone zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Zone not found with id: " + id));
         return toResponse(zone);
+    }
+
+    /**
+     * Updates the mutable fields of a zone (name, description, temperature thresholds).
+     * IoT device/user is NOT re-provisioned—only local DB fields change.
+     */
+    @Transactional
+    public ZoneResponse updateZone(Long id, ZoneUpdateRequest request) {
+        Zone zone = zoneRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Zone not found with id: " + id));
+
+        if (request.getName() != null && !request.getName().isBlank()) {
+            zone.setName(request.getName());
+        }
+        if (request.getDescription() != null) {
+            zone.setDescription(request.getDescription());
+        }
+        if (request.getMinTemp() != null) {
+            zone.setMinTemp(request.getMinTemp());
+        }
+        if (request.getMaxTemp() != null) {
+            zone.setMaxTemp(request.getMaxTemp());
+        }
+
+        // Validate thresholds after applying new values
+        if (zone.getMinTemp() != null && zone.getMaxTemp() != null
+                && zone.getMinTemp() >= zone.getMaxTemp()) {
+            throw new IllegalArgumentException(
+                    "minTemp (" + zone.getMinTemp() + ") must be less than maxTemp (" + zone.getMaxTemp() + ")");
+        }
+
+        Zone updated = zoneRepository.save(zone);
+        log.info("Zone {} updated", id);
+        return toResponse(updated);
+    }
+
+    @Transactional
+    public void deleteZone(Long id) {
+        if (!zoneRepository.existsById(id)) {
+            throw new RuntimeException("Zone not found with id: " + id);
+        }
+        zoneRepository.deleteById(id);
+        log.info("Deleted zone with id: {}", id);
     }
 
     private ZoneResponse toResponse(Zone zone) {

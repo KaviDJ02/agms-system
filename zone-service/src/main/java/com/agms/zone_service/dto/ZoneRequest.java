@@ -5,11 +5,13 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.agms.zone_service.validation.ValidTempRange;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ValidTempRange
 public class ZoneRequest {
 
     @NotBlank(message = "Zone name is required")
