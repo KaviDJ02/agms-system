@@ -48,7 +48,7 @@ External dependency:
 Create a `.env` file in project root:
 
 ```env
-JWT_SECRET=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+JWT_SECRET=your-jwt-secret
 IOT_USERNAME=your-iot-username
 IOT_PASSWORD=your-iot-password
 AGMS_INTERNAL_SUBJECT=sensor-service
