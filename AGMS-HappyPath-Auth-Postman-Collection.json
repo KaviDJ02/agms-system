@@ -1,0 +1,328 @@
+{
+  "info": {
+    "_postman_id": "0ad25d05-3ef6-4d17-84fa-d9db89d7dbb7",
+    "name": "AGMS Happy Path Auth Chain",
+    "description": "Validates gateway login and protected chain: gateway -> sensor -> automation -> zone.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1) Login at Gateway (Get AGMS JWT)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{iot_username}}\",\n  \"password\": \"{{iot_password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/auth/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Logs in via gateway and stores AGMS JWT in collection variable agms_token."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const json = pm.response.json();",
+              "pm.test('Token exists in response', function () {",
+              "    pm.expect(json.token).to.be.a('string').and.not.empty;",
+              "});",
+              "",
+              "pm.collectionVariables.set('agms_token', json.token);",
+              "pm.collectionVariables.set('agms_subject', json.subject || '');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2) Protected Sensor Endpoint (Initial)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{agms_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/sensors/latest",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "sensors",
+            "latest"
+          ]
+        },
+        "description": "Calls protected sensor endpoint with AGMS JWT. May return 200 (data exists) or 204 (no data yet)."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const code = pm.response.code;",
+              "pm.test('Status is 200 or 204', function () {",
+              "    pm.expect([200, 204]).to.include(code);",
+              "});",
+              "",
+              "if (code === 200) {",
+              "    const json = pm.response.json();",
+              "    if (typeof json.temperature === 'number') {",
+              "        pm.collectionVariables.set('latest_temp_before_wait', String(json.temperature));",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3) WAIT 20s (Manual Step)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/actuator/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "actuator",
+            "health"
+          ]
+        },
+        "description": "Manual pause step: wait about 20 seconds before running next request so sensor scheduler can poll and forward telemetry."
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "console.log('Pause manually for ~20 seconds before sending this request.');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4) Protected Sensor Endpoint (After Wait)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{agms_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/sensors/latest",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "sensors",
+            "latest"
+          ]
+        },
+        "description": "Gets latest sensor reading after scheduler cycle and stores latest temperature for cross-check."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const code = pm.response.code;",
+              "pm.test('Status is 200 or 204', function () {",
+              "    pm.expect([200, 204]).to.include(code);",
+              "});",
+              "",
+              "if (code === 200) {",
+              "    const json = pm.response.json();",
+              "    pm.test('Response has temperature', function () {",
+              "        pm.expect(json.temperature).to.be.a('number');",
+              "    });",
+              "    pm.collectionVariables.set('latest_temp_after_wait', String(json.temperature));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5) Automation Logs by Zone (Chain Proof)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{agms_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/automation/logs?zoneId={{zone_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "automation",
+            "logs"
+          ],
+          "query": [
+            {
+              "key": "zoneId",
+              "value": "{{zone_id}}"
+            }
+          ]
+        },
+        "description": "Validates automation logs are created for the selected zone, proving sensor -> automation -> zone execution path."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const logs = pm.response.json();",
+              "pm.test('Response is an array', function () {",
+              "    pm.expect(Array.isArray(logs)).to.eql(true);",
+              "});",
+              "",
+              "pm.test('At least one automation log exists for zone', function () {",
+              "    pm.expect(logs.length).to.be.greaterThan(0);",
+              "});",
+              "",
+              "if (logs.length > 0) {",
+              "    const first = logs[0];",
+              "    pm.test('Log has core fields', function () {",
+              "        pm.expect(first).to.have.property('zoneId');",
+              "        pm.expect(first).to.have.property('temperature');",
+              "        pm.expect(first).to.have.property('action');",
+              "        pm.expect(first).to.have.property('timestamp');",
+              "    });",
+              "",
+              "    const latestTemp = Number(pm.collectionVariables.get('latest_temp_after_wait'));",
+              "    if (!Number.isNaN(latestTemp) && typeof first.temperature === 'number') {",
+              "        pm.test('Newest automation log temp is close to latest sensor temp', function () {",
+              "            pm.expect(Math.abs(first.temperature - latestTemp)).to.be.below(0.6);",
+              "        });",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6) Negative Check (Protected Endpoint Without Token)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/sensors/latest",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "sensors",
+            "latest"
+          ]
+        },
+        "description": "Optional negative check. This request intentionally omits Authorization header and should return 401."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 401 when token is missing', function () {",
+              "    pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "iot_username",
+      "value": "kavindu"
+    },
+    {
+      "key": "iot_password",
+      "value": "change-me"
+    },
+    {
+      "key": "zone_id",
+      "value": "1"
+    },
+    {
+      "key": "agms_token",
+      "value": ""
+    },
+    {
+      "key": "agms_subject",
+      "value": ""
+    },
+    {
+      "key": "latest_temp_before_wait",
+      "value": ""
+    },
+    {
+      "key": "latest_temp_after_wait",
+      "value": ""
+    }
+  ]
+}
